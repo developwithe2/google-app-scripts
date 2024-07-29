@@ -15,15 +15,10 @@ const columns = {
   post_date: 1, // Date
   time_of_day: 2, // String
   post_time: 3, // Time
-  caption: 4, // String
-  media_format: 5, // String
-  is_carousel_item: 6, // String, 'Yes' or 'No'
-  media_type: 7, // String, Refer to API documentation for all types
-  media_url: 8, // String array
-  location_id: 9,
-  user_tags: 10, // Objects array
-  product_tags: 11, // Objects array
-  post_id: 12 // String
+  is_carousel_item: 4, // String, 'Yes' or 'No'
+  media_type: 5, // String, Refer to API documentation for all types
+  media_url: 6, // String array
+  caption: 7, // String
 }
 // Set time-of-day phases & houe ranges
 const timesOfDay = {
