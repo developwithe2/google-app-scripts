@@ -1,10 +1,12 @@
-# Post to Instagram from Google Sheets
+# Post to Social Media from Google Sheets
 
-## Oveview
+## Posting to Instagram
+
+### Overview
 
 A Google App Script to schedule instagram posts.
 
-## Setup of the Google Sheet
+### Setup of the Google Sheet
 
 | title  | post_date | time_of_day | post_time  | is_carousel_item | media_type       | media_url       | caption                     |
 | :----- | :-------- | :---------- | :--------- | :--------------- | :--------------- | :-------------- | :-------------------------- |
