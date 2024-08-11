@@ -1,52 +1,46 @@
-// POST TO INSTAGRAM VIA GOOGLE SHEETS & GOOGLE APP SCRIPT
+function postToInstagram(scriptProps, workbook, timesOfDay) {
+  const ig = {
+    appName: 'Instagram',
+    accessToken: scriptProps.getProperty('igAccessToken'),
+    expiration: parseInt(scriptProps.getProperty('igExpiresOn'), 10),
+    businessAccountId: scriptProps.getProperty('igBusinessAccountId'),
+    baseUrl: scriptProps.getProperty('igBaseUrl'),
+    endpoint1: scriptProps.getProperty('igEndpoint1'),
+    endpoint2: scriptProps.getProperty('igEndpoint2')
+  };
 
-// INSTAGRAM GRAPH API FOR BUSINESS ACCOUNT
-// Create a Facebook app through Meta Developers
-// Assign app to a Facebook Business account
-// Access token generated through Meta Business Manager for System User
-// Retrieve Business Account ID through Facebook Graph API Explorer
-  // GET graph.facebook.com/{api_version}/me/accounts?fields=name,id,access_token,instagram_business_account{id,username,profile_picture_url}
+  // CONFIRM ACTIVE TOKENS or REFRESH TOKENS
+  // const instagramTokens = initializeInstagramTokens(scriptProps, ig);
+  // if (!instagramTokens) {
+    // Logger.log('ERROR: Did not receive tokens. Aborting execution.');
+    // return;
+  // };
 
-// BASE VARIABLES
-const workbook = SpreadsheetApp.getActiveSpreadsheet();
-// Index integer of columns in spreadsheet
-const columns = {
-  title: 0, // String
-  post_date: 1, // Date
-  time_of_day: 2, // String
-  post_time: 3, // Time
-  is_carousel_item: 4, // String, 'Yes' or 'No'
-  media_type: 5, // String, Refer to API documentation for all types
-  media_url: 6, // String array
-  caption: 7, // String
-}
-// Set time-of-day phases & houe ranges
-const timesOfDay = {
-  "Midnight": [0,3],
-  "Early Morning": [3,6],
-  "Morning": [6,9],
-  "Late Morning": [9,12],
-  "Early Afternoon": [12,15],
-  "Afternoon": [15,18],
-  "Evening": [18,21],
-  "Late Evening": [21,24]
-};
-// Configure Intagram API
-const igAccess = [SET_INTAGRAM_ACCESS_KEY];
-const igBusinessAccountId = [SET_INTRAGRAM_ACCOUNT_ID];
-const igBaseUrl = [SET_INSTAGRAM_BASE_URL];
-const igEndpoint1 = [SET_INSTAGRAM_ENDPOINT1];
-const igEndpoint2 = [SET_INSTAGRAM_ENDPOINT2];
-const postContainer = `${igBaseUrl}${igBusinessAccountId}${igEndpoint1}`;
-const postSubmit = `${igBaseUrl}${igBusinessAccountId}${igEndpoint2}`;
-
-// MAIN FUNCTION
-function postToInstagram() {
   try {
-    const namedRange = workbook.getRangeByName('[ENTER_RANGE_NAME]'); // Set namedRange variable
-    const postRows = namedRange.getValues(); // Get all values in named ranged
+    const columns = {
+      status: columnIndex(ig.appName, 'status'),
+      post_date: columnIndex(ig.appName, 'post_date'),
+      time_of_day: columnIndex(ig.appName, 'time_of_day'),
+      caption: columnIndex(ig.appName, 'caption'),
+      is_carousel_item: columnIndex(ig.appName, 'is_carousel_item'),
+      media_format: columnIndex(ig.appName, 'media_format'),
+      media_type: columnIndex(ig.appName, 'media_type'),
+      media_url: columnIndex(ig.appName, 'media_url'),
+      location_id: columnIndex(ig.appName, 'location_id'),
+      user_tags: columnIndex(ig.appName, 'user_tags'),
+      product_tags: columnIndex(ig.appName, 'product_tags'),
+      post_id: columnIndex(ig.appName, 'post_id'),
+    };
 
-    // Setting date & time-of-day associated variables for filtering
+    // SET ENDPOINTS
+    const postContainer = `${ig.baseUrl}${ig.businessAccountId}${ig.endpoint1}`;
+    const postSubmit = `${ig.baseUrl}${ig.businessAccountId}${ig.endpoint2}`;
+
+    // GET ARRAY OF ALL POSTS WITHIN RANGE/TABLE
+    const namedRange = workbook.getRangeByName(ig.appName);
+    const postRows = namedRange.getValues();
+
+    // SET FILTER PARAMETERS BASED ON DATE & TIME OF DAY
     const now = new Date();
     const today = Utilities.formatDate(now, Session.getScriptTimeZone(), 'yyyy-MM-dd');
     const currentHour = now.getHours();
@@ -55,93 +49,86 @@ function postToInstagram() {
       return currentHour >= start && currentHour < end;
     });
 
-    // Filter post rows by date & time-of-day
+    // FILTER POSTS BY PARAMETERS
     const filteredPosts = postRows.filter(row => {
       const postDate = Utilities.formatDate(new Date(row[columns.post_date]), Session.getScriptTimeZone(), 'yyyy-MM-dd');
       const postTimeOfDay = row[columns.time_of_day];
       return postDate === today && postTimeOfDay === currentTimeOfDay;
     });
-    if (filteredPosts.length === 0) {
-      Logger.log('No posts scheduled for today at this time.');
-      return; // Terminate script if no posts are scheduled for date & time-of-day
-    };
 
+    if (filteredPosts.length === 0) {
+      Logger.log('No Instagram posts scheduled for today at this time.');
+      return; // Terminate if no posts are scheduled
+    }
+
+    // POST & RECORD DATA FOR EACH POST WITHIN FILTERED ARRAY
     filteredPosts.forEach((row, index) => {
-      const mediaUrls = row[columns.media_url].split(',').map(url => url.trim()); // Convert multi-values to array
+      const mediaUrls = row[columns.media_url].split(',').map(url => url.trim());
       const caption = row[columns.caption];
       const location = row[columns.location_id];
       const mediaType = row[columns.media_type];
 
+      // INITIATE creationId STRING VARIABLE
       let creationId;
 
-      // Determine what media type is being posted
       if (mediaType === 'CAROUSEL') {
-        creationId = createCarouselPost(mediaUrls, caption, location, mediaType);
+        const mediaFormat = row[columns.media_format];
+        creationId = createInstagramCarouselPost(mediaUrls, mediaFormat, caption, location, instagramTokens, postContainer);
       } else {
-        creationId = createSinglePost(mediaUrls[0], caption, location, false, mediaType);
-      };
+        creationId = createInstagramSinglePost(mediaUrls[0], false, mediaType, caption, location, instagramTokens, postContainer);
+      }
 
-      const publishData = {
+      // SET PAYLOAD DATA
+      const publishPayload = {
         'creation_id': creationId,
-        'access_token': igAccess,
+        'access_token': instagramTokens,
       };
+
+      // SET OPTIONS DATA
       const publishOptions = {
-        'method': 'post',
-        'payload': publishData,
-        "muteHttpExceptions": true,
+        'method': 'POST',
+        'contentType': 'application/json',
+        'payload': JSON.stringify(publishPayload),
+        'muteHttpExceptions': true,
       };
-      const publishResponse = UrlFetchApp.fetch(postSubmit, publishOptions);
-      Logger.log(publishResponse.getContentText());
 
-      const response = publishResponse.getContentText();
-      const post = JSON.parse(response);
+      // SEND & RECORD POST SUBMISSION
+      const publishRequest = UrlFetchApp.fetch(postSubmit, publishOptions);
+      const publishResponse = JSON.parse(publishRequest.getContentText());
+      Logger.log(publishResponse.id);
 
-      // Record the post id back to spreadsheet in the post_id column
+      // RECORD POST DATA TO SPREADSHEET
       const rowIndex = namedRange.getRow() + index;
-      workbook.getSheetByName('[ENTER_SHEET_NAME]').getRange(rowIndex, columns.post_id + 1).setValue(post.id);
+      workbook.getSheetByName(ig.appName).getRange(rowIndex, columns.post_id + 1).setValue(publishResponse.id);
+      workbook.getSheetByName(ig.appName).getRange(rowIndex, columns.status + 1).setValue('POSTED');
     });
   } catch (error) {
-    Logger.log('Error running postToInstagram:', error.message);
+    Logger.log('An error occurred while running postToInstagram:', error.message);
     return error;
-  } finally {
-    Logger.log('postToInstagram finished running.');
-  };
-};
+  }
+}
 
-/**
- * Function to create a single post
- * @param {string} mediaUrl - URL of the media to post
- * @param {string} caption - Caption for the post
- * @param {string} location - Location ID for the post
- * @param {boolean} carouselItem - Flag indicating if the media is part of a carousel
- * @param {string} mediaType - Type of the media (IMAGE, VIDEO, etc.)
- * @return {string} - Creation ID of the post
- */
-function createSinglePost(mediaUrl, caption, location, carouselItem, mediaType) {
+function createInstagramSinglePost(mediaUrl, carouselItem, mediaType, caption, location, access_token, postContainer) {
   try {
-    const userTags = [
-      {
-        username: 'developwithe2',
-        x: 0.1,
-        y: 0.1,
-      }
-    ];
+    let userTags = [];
 
-    let postData = {
-      'access_token': igAccess,
+    // INITIATE PAYLOAD DATA
+    let postPayload = {
+      'access_token': access_token,
       'is_carousel_item': carouselItem,
     };
 
+    // ADD POST TYPE PAYLOAD DATA
     if (mediaType !== 'IMAGE') {
-      // REELS: media_type, video_url, caption, share_to_feed, collaborators, cover_url, audio_name, user_tags, location_id, thumb_offset, access_token
+      // REELS: media_type, video_url, caption, share_to_feed, collaborators, cover_url, audio_name, user_tags, location_id, thumb_offset
       const cover = '';
       const shareToFeed = '';
       const thumbOffset = '';
       const audio = '';
       const collaborators = '';
 
-      postData = {
-        ...postData,
+      postPayload = {
+        ...postPayload,
         'media_type': mediaType,
         'video_url': mediaUrl,
         ...(!carouselItem && caption && { 'caption': caption }),
@@ -154,85 +141,142 @@ function createSinglePost(mediaUrl, caption, location, carouselItem, mediaType) 
         ...(!carouselItem && shareToFeed && { 'share_to_feed': shareToFeed }),
       };
     } else {
-      // IMAGE: image_url, caption, location_id, user_tags, product_tags, is_carousel_item, access_token
-      postData = {
-        ...postData,
+      // IMAGE: image_url, caption, location_id, user_tags, product_tags
+      postPayload = {
+        ...postPayload,
         'image_url': mediaUrl,
         ...(!carouselItem && caption && { 'caption': caption }),
         ...(!carouselItem && location && { 'location_id': location }),
         ...(!carouselItem && userTags.length > 0 && { 'user_tags': userTags }),
       };
-    };
+    }
 
+    // SET OPTIONS DATA
     const postOptions = {
-      'method': 'post',
-      'payload': postData,
-      "muteHttpExceptions": true,
+      'method': 'POST',
+      'contentType': 'application/json',
+      'payload': JSON.stringify(postPayload),
+      'muteHttpExceptions': true,
     };
-    const publishRequest = UrlFetchApp.fetch(postContainer, postOptions);
-    Logger.log(publishRequest.getContentText());
 
-    const container = publishRequest.getContentText();
-    const creation = JSON.parse(container);
+    // SEND & RECORD POST REQUEST
+    const publishSinglePostRequest = UrlFetchApp.fetch(postContainer, postOptions);
+    Logger.log(publishSinglePostRequest);
+    const creation = JSON.parse(publishSinglePostRequest.getContentText());
+    Logger.log(creation.id);
     return creation.id;
   } catch (error) {
-    Logger.log('Error running createSinglePost:', error.message);
-    throw error; // Rethrow error to propagate it
-  } finally {
-    Logger.log('createSinglePost finished running.');
-  };
-};
+    Logger.log('An error occurred while running createInstagramSinglePost:', error.message);
+    throw error;
+  }
+}
 
-/**
- * Function to create a carousel post
- * @param {Array<string>} mediaUrls - Array of media URLs for the carousel
- * @param {string} caption - Caption for the post
- * @param {string} location - Location ID for the post
- * @param {string} mediaType - Type of the media
- * @return {string} - Creation ID of the post
- */
-function createCarouselPost(mediaUrls, caption, location, mediaType) {
+function createInstagramCarouselPost(mediaUrls, mediaFormat, caption, location, access_token, postContainer) {
   try {
-    const children = [];
 
+    // INITIATE childern ARRAY VARIABLE
+    let children = [];
+
+    // CREATE EACH CAROUSEL ITEM & RETURN creationId TO ARRAY
     mediaUrls.forEach( (url) => {
-      const creationId = createSinglePost(url, '', location, true, mediaType);
+      const creationId = createInstagramSinglePost(url, true, mediaFormat, '', location, access_token, postContainer);
       children.push(creationId);
     });
 
-    console.log(children);
+    Logger.log(children);
 
     const collaborators = '';
     const shareToFeed = '';
     const productTags = '';
     
+    // SET PAYLOAD DATA
     // CAROUSEL: media_type, caption, share_to_feed, collaborators, location_id, product_tags, children, access_token
-    const postData = {
+    const postPayload = {
       'media_type': 'CAROUSEL',
       'caption': caption,
       'children': children,
-      'access_token': igAccess,
+      'access_token': access_token,
         ...(collaborators.length > 0 && { 'collaborators': collaborators }),
         ...(shareToFeed && { 'share_to_feed': shareToFeed }),
         ...(location && { 'location_id': location }),
         ...(productTags.length > 0 && { 'product_tags': productTags }),
     };
 
+    // SET OPTIONS DATA
     const postOptions = {
-      'method': 'post',
-      'payload': postData,
-      "muteHttpExceptions": true,
+      'method': 'POST',
+      'contentType': 'application/json',
+      'payload': JSON.stringify(postPayload),
+      'muteHttpExceptions': true,
     };
-    const publishRequest = UrlFetchApp.fetch(postContainer, postOptions);
-    Logger.log(publishRequest.getContentText());
 
-    const container = publishRequest.getContentText();
-    const creation = JSON.parse(container);
+    // SEND & RECORD POST REQUEST
+    const publishCarouselPostRequest = UrlFetchApp.fetch(postContainer, postOptions);
+    Logger.log(publishCarouselPostRequest);
+    const creation = JSON.parse(publishCarouselPostRequest.getContentText());
+    Logger.log(creation.id);
     return creation.id;
   } catch (error) {
-    Logger.log('Error running createCarouselPost:', error.message);
-    throw error; // Rethrow error to propagate it
-  } finally {
-    Logger.log('createCarouselPost finished running.');
+    Logger.log('An error occurred while running createInstagramCarouselPost:', error.message);
+    throw error;
+  }
+}
+
+// INITIALIZES OR UPDATES TOKENS
+function initializeInstagramTokens(scriptProps, ig) {
+  let access_token = ig.accessToken;
+  let expires_on = new Date(ig.expiration);
+  const expires_minus_1 = new Date(expires_on.getTime() - (24 * 60 * 60 *1000));
+
+  // CONFIRM IF TODAY IS DAY BEFORE TOKEN EXPIRATION DATE
+  if (new Date() > expires_minus_1 && new Date() < expires_on) {
+
+    // REFRESH TOKENS (SEE ASSOCIATED FUNCTION)
+    const refreshResponse = refreshInstagramTokens(access_token);
+
+    // UPDATE SCRIPT PROPERTIES WITH REFRESHED TOKENS
+    if (refreshResponse) {
+      access_token = refreshResponse.access_token; // Get new access token
+      const now = new Date(); // Get datetime of token refresh
+      expires_on = now.getTime() + (refreshResponse.expires_in * 1000); // Set new token expiration date
+      const expires_on_milliseconds = expires_on.toFixed(0); // Convert new token expiration date into milliseconds for storage
+      scriptProps.setProperty('igAccessToken', access_token);
+      scriptProps.setProperty('igExpiresOn', expires_on_milliseconds);
+    } else {
+      return null;
+    }
+  } else {
+    Logger.log('All tokens are currently active.');
+  }
+  // RETURN EXISTING TOKENS OR REFRESHED TOKENS
+  return access_token;
+}
+
+// REFRESH TOKEN
+function refreshInstagramTokens(access_token) {
+  const tokenPayload = {
+    'grant_type': 'ig_refresh_token',
+    'access_token': access_token
   };
-};
+  
+  const tokenOptions = {
+    method: 'GET',
+    contentType: 'application/json',
+    payload: tokenPayload,
+    muteHttpExceptions: true
+  };
+
+  const urlRefreshToken = 'https://graph.instagram.com/refresh_access_token';
+
+  const refreshInstagramTokensRequest = UrlFetchApp.fetch(urlRefreshToken + '?grant_type=ig_refresh_token&access_token=' + encodeURIComponent(access_token), tokenOptions);
+  Logger.log(refreshInstagramTokensRequest);
+  const refreshInstagramTokensResponse = JSON.parse(refreshInstagramTokensRequest.getContentText());
+
+  if (refreshInstagramTokensRequest.getResponseCode() === 200) {
+    Logger.log('Successfully refreshed Instagram tokens: ' + refreshInstagramTokensRequest.getContentText());
+    return refreshInstagramTokensResponse;
+  } else {
+    Logger.log('ERROR: Unable to refresh Instagram tokens. Response code: ' + refreshInstagramTokensRequest.getResponseCode() + ' Response body: ' + refreshInstagramTokensRequest.getContentText());
+    return null;
+  }
+}
