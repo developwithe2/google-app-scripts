@@ -25,11 +25,11 @@ function postToInstagram(scriptProps, workbook, timesOfDay) {
   };
 
   // CONFIRM ACTIVE TOKENS or REFRESH TOKENS
-  // const instagramTokens = initializeInstagramTokens(scriptProps, ig);
-  // if (!instagramTokens) {
-    // Logger.log('ERROR: Did not receive tokens. Aborting execution.');
-    // return;
-  // };
+  const instagramTokens = initializeInstagramTokens(scriptProps, ig);
+  if (!instagramTokens) {
+    Logger.log('ERROR: Did not receive tokens. Aborting execution.');
+    return;
+  };
 
   try {
     const columns = {
