@@ -370,7 +370,7 @@ function initializeLinkedInTokens(scriptProps, li) {
     Logger.log('All tokens are currently active.');
   }
   // RETURN EXISTING TOKENS OR REFRESHED TOKENS
-  return { access_token, refresh_token };
+  return access_token;
 }
 
 // REFRESH TOKENS
