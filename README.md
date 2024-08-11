@@ -2,24 +2,24 @@
 
 ## Overview
 
-A Google App Script project that schedules social media posts to the following apps:
+A Google App Script project that schedules & publishes social media posts to the following platforms:
 - [Instagram](https://developers.facebook.com/docs/instagram-basic-display-api/overview)
 - [Threads](https://developers.facebook.com/docs/threads/get-started)
 - [Twitter X](https://developer.x.com/en/docs/twitter-api/tweets/manage-tweets/introduction)
 - [LinkedIn](https://learn.microsoft.com/en-us/linkedin/marketing/quick-start?view=li-lms-2024-07)
 
 This project is a centralized social media management system that accomplishes the following solutions:
-- Manage, schedule & synchronize posts across multiple accounts & applications
+- Manage, schedule & publish posts across multiple accounts & platforms
 - Schedule posts as far in advance as desired
+- Synchronize post campaigns across multiple platforms
 - Conditional scripts run based on selected post media type to ensure appropriate payload data & endpoints
 - Customize `time_of_day` to match preferred daily posting timeframes
-- Utilize familiar, cross-generational spreadsheet interface
+- Utilizes a familiar, cross-generational spreadsheet interface
 - Auto-refresh access tokens based on token expiration timelines
 
 Additional solutions currently being developed:
 - Posting schedule synchronization with Google Calendars
 - Text notifications using Google Voice via GMail
-- AI caption writing
 
 ## Basic Information
 
