@@ -1,4 +1,18 @@
+// GLOBAL VARIABLES
+const scriptProps = PropertiesService.getScriptProperties();
+const workbook = SpreadsheetApp.getActiveSpreadsheet();
+const timesOfDay = {
+  "Midnight": [0,3],
+  "Early Morning": [3,6],
+  "Morning": [6,9],
+  "Late Morning": [9,12],
+  "Early Afternoon": [12,15],
+  "Afternoon": [15,18],
+  "Evening": [18,21],
+  "Late Evening": [21,24]
+};
 
+// POST TO LINKEDIN
 function postToLinkedIn(scriptProps, workbook, timesOfDay) {
   const li = {
     appName: 'LinkedIn',
