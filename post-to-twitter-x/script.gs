@@ -12,6 +12,7 @@ const timesOfDay = {
   "Late Evening": [21,24]
 };
 
+// POST TO TWITTERX
 function postToTwitterX(scriptProps, workbook, timesOfDay) {
   const tx = {
     appName: 'TwitterX',
@@ -89,74 +90,6 @@ function postToTwitterX(scriptProps, workbook, timesOfDay) {
   }
 }
 
-// INITIALIZES OR UPDATES TOKENS
-function initializeTwitterXTokens(scriptProps, tx) {
-  let access_token = tx.accessToken;
-  let refresh_token = tx.refreshToken;
-  let expires_on = new Date(tx.expiration);
-
-  // CONFIRM IF TODAY IS LATER THAN TOKEN EXPIRATION DATE
-  if (new Date() > expires_on) {
-
-    // REFRESH TOKENS (SEE ASSOCIATED FUNCTION)
-    const response = refreshTwitterXTokens(tx, refresh_token);
-
-    // UPDATE SCRIPT PROPERTIES WITH REFRESHED TOKENS
-    if (response) {
-      access_token = response.access_token;
-      refresh_token = response.refresh_token;
-      const now = new Date(); // Get datetime of token refresh
-      expires_on = now.getTime() + (response.expires_in * 1000); // Set new token expiration date
-      const expires_on_milliseconds = expires_on.toFixed(0); // Convert new token expiration date into milliseconds for storage
-      scriptProps.setProperty('txAccessToken', access_token);
-      scriptProps.setProperty('txRefreshToken', refresh_token);
-      scriptProps.setProperty('txExpiresOn', expires_on_milliseconds);
-    } else {
-      return null;
-    }
-  } else {
-    Logger.log('All tokens are currently active.');
-  }
-  // RETURN EXISTING TOKENS OR REFRESHED TOKENS
-  return { access_token, refresh_token };
-}
-
-// REFRESH TOKENS
-function refreshTwitterXTokens(tx, refresh_token) {
-
-  const data = {
-    'refresh_token': refresh_token,
-    'grant_type': "refresh_token",
-    'client_id': tx.clientId
-  };
-  const basicAuthorizationHeader = Utilities.base64Encode(tx.clientId + ':' + tx.clientSecret);
-  const options = {
-    method: 'POST',
-    contentType: 'application/x-www-form-urlencoded',
-    payload: Object.entries(data).map(([key, value]) => encodeURIComponent(key) + '=' + encodeURIComponent(value)).join('&'),
-    headers: {
-      Authorization: 'Basic ' + basicAuthorizationHeader
-    },
-    muteHttpExceptions: true
-  };
-
-  // SET ENDPOINT
-  const urlToken = `${tx.baseUrl}${tx.endpointToken}`;
-
-  // SEND TOKEN REFRESH REQUEST
-  const refreshTwitterXTokensRequest = UrlFetchApp.fetch(urlToken, options);
-  const refreshTwitterXTokensResponse = JSON.parse(refreshTwitterXTokensRequest.getContentText());
-
-  // ERROR HANDLING
-  if (refreshTwitterXTokensRequest.getResponseCode() === 200 || refreshTwitterXTokensRequest.getResponseCode() === 201) {
-    Logger.log('Successfully refreshed access tokens: ' + refreshTwitterXTokensRequest.getContentText());
-    return refreshTwitterXTokensResponse;
-  } else {
-    Logger.log('ERROR: Unable to refresh access tokens. Response code: ' + refreshTwitterXTokensRequest.getResponseCode() + ' Response body: ' + refreshTwitterXTokensRequest.getContentText());
-    return null;
-  }
-}
-
 // POST TWEET TO TWITTERX
 function createTwitterXPost(tx, caption, mediaType, pollOptions, pollDuration, access_token) {
   try {
@@ -193,6 +126,7 @@ function createTwitterXPost(tx, caption, mediaType, pollOptions, pollDuration, a
 
     // SEND & RECORD POST SUBMISSION
     const createTwitterXPostRequest = UrlFetchApp.fetch(urlTweets, options);
+    Logger.log(createTwitterXPostRequest);
     const createTwitterXPostResponse = JSON.parse(createTwitterXPostRequest.getContentText());
 
     // ERROR HANDLING
@@ -208,16 +142,71 @@ function createTwitterXPost(tx, caption, mediaType, pollOptions, pollDuration, a
   }
 }
 
-// GET COLUMN INDEX OF HEADER IN SHEET
-function columnIndex(sheet, headerString) {
-  const headerRowArray = workbook.getRangeByName(`headers${sheet}`).getValues()[0];
-  let colIndex = -1;
+// INITIALIZES OR UPDATES TOKENS
+function initializeTwitterXTokens(scriptProps, tx) {
+  let access_token = tx.accessToken;
+  let refresh_token = tx.refreshToken;
+  let expires_on = new Date(tx.expiration);
 
-  headerRowArray.forEach((colHeader, index) => {
-    if (colHeader === headerString) {
-      colIndex = index;
+  // CONFIRM IF TODAY IS LATER THAN TOKEN EXPIRATION DATE
+  if (new Date() > expires_on) {
+
+    // REFRESH TOKENS (SEE ASSOCIATED FUNCTION)
+    const response = refreshTwitterXTokens(tx, refresh_token);
+
+    // UPDATE SCRIPT PROPERTIES WITH REFRESHED TOKENS
+    if (response) {
+      access_token = response.access_token;
+      refresh_token = response.refresh_token;
+      const now = new Date(); // Get datetime of token refresh
+      expires_on = now.getTime() + (response.expires_in * 1000); // Set new token expiration date
+      const expires_on_milliseconds = expires_on.toFixed(0); // Convert new token expiration date into milliseconds for storage
+      scriptProps.setProperty('txAccessToken', access_token);
+      scriptProps.setProperty('txRefreshToken', refresh_token);
+      scriptProps.setProperty('txExpiresOn', expires_on_milliseconds);
+    } else {
+      return null;
     }
-  });
+  } else {
+    Logger.log('All tokens are currently active.');
+  }
+  // RETURN EXISTING TOKENS OR REFRESHED TOKENS
+  return { access_token, refresh_token };
+}
 
-  return colIndex;
+// REFRESH TOKENS
+function refreshTwitterXTokens(tx, refresh_token) {
+
+  const tokenPayload = {
+    'refresh_token': refresh_token,
+    'grant_type': "refresh_token",
+    'client_id': tx.clientId
+  };
+  const basicAuthorizationHeader = Utilities.base64Encode(tx.clientId + ':' + tx.clientSecret);
+  const tokenOptions = {
+    method: 'POST',
+    contentType: 'application/x-www-form-urlencoded',
+    payload: Object.entries(tokenPayload).map(([key, value]) => encodeURIComponent(key) + '=' + encodeURIComponent(value)).join('&'),
+    headers: {
+      Authorization: 'Basic ' + basicAuthorizationHeader
+    },
+    muteHttpExceptions: true
+  };
+
+  // SET ENDPOINT
+  const urlToken = `${tx.baseUrl}${tx.endpointToken}`;
+
+  // SEND TOKEN REFRESH REQUEST
+  const refreshTwitterXTokensRequest = UrlFetchApp.fetch(urlToken, tokenOptions);
+  Logger.log(refreshTwitterXTokensRequest);
+  const refreshTwitterXTokensResponse = JSON.parse(refreshTwitterXTokensRequest.getContentText());
+
+  // ERROR HANDLING
+  if (refreshTwitterXTokensRequest.getResponseCode() === 200 || refreshTwitterXTokensRequest.getResponseCode() === 201) {
+    Logger.log('Successfully refreshed access tokens: ' + refreshTwitterXTokensRequest.getContentText());
+    return refreshTwitterXTokensResponse;
+  } else {
+    Logger.log('ERROR: Unable to refresh access tokens. Response code: ' + refreshTwitterXTokensRequest.getResponseCode() + ' Response body: ' + refreshTwitterXTokensRequest.getContentText());
+    return null;
+  }
 }
