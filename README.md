@@ -14,6 +14,7 @@ This project is a centralized social media management system that accomplishes t
 - Conditional scripts run based on selected post media type to ensure appropriate payload data & endpoints
 - Customize `time_of_day` to match preferred daily posting timeframes
 - Utilize familiar, cross-generational spreadsheet interface
+- Auto-refresh access tokens based on token expiration timelines
 
 Additional solutions currently being developed:
 - Posting schedule synchronization with Google Calendars
